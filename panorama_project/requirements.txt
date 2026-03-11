@@ -1,0 +1,12 @@
+
+# Biblioteca para fazermos toda a manipulação matematica montar a matriz A, fazer a SVD...
+numpy>=1.24
+
+#Ler/salvar imagens, aplicar a homografia nos pixels, além de desenhar linhas pra facilitar escolha e pontos
+opencv-python>=4.8
+
+#Mostrar as imagens na tela,basicamente para gerar um interface e interação com  a imagem
+matplotlib>=3.7
+
+#Biblioteca para verificação de contas 
+scipy>=1.11
