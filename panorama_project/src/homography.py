@@ -1,21 +1,16 @@
 import numpy as np
 
 
-# ─────────────────────────────────────────────
+
 #  1. NORMALIZAÇÃO DE HARTLEY
-# ─────────────────────────────────────────────
 
 def normalizar_pontos(pts):
     """
-    Recebe pontos no formato [[x1,y1], [x2,y2], ...]
-    Retorna os pontos normalizados e a matriz T usada.
-
-    Por que normalizar?
-    - Os valores de pixel podem ser ex: 1200x800
-    - Isso cria números grandes na matriz A
-    - A SVD fica numericamente instável
-    - Após normalizar: centroide em (0,0), distância média = √2
-    """
+   Normalizamos aqui os pontos para que os valores fiquem menores e deixar os proximos calculos mais tranquilos
+   escolhemos um centroide e o normalizamos. 
+   Retornamos os pontos e a Transformação feita para depois desfazermos
+   """
+    
 
     pts = np.array(pts, dtype=np.float64)
 
@@ -45,18 +40,28 @@ def normalizar_pontos(pts):
     return pts_norm[:, :2], T
 
 
-# ─────────────────────────────────────────────
+
 #  2. MONTAR A MATRIZ A
-# ─────────────────────────────────────────────
 
 def montar_matriz_A(pts1, pts2):
     """
-    Para cada par de pontos correspondentes (xi,yi) <-> (xi',yi')
+    Vamos fazer a seguinte transformção (xi,yi) <-> (xi',yi'), H @ [x, y, 1] = [x', y', 1]
     gera 2 linhas na matriz A.
 
-    O sistema é Ah = 0, onde h = [h11,h12,...,h33] (9 elementos de H)
-    Com 4 pares: A tem shape (8, 9)  → sistema determinado
-    Com N pares: A tem shape (2N, 9) → sistema sobredeterminado
+    O sistema é Ah = 0, onde h = [h1,h2,...,h9]
+
+    Esse seria o nosso conjunto de equaçoes:
+    h1*x + h2*y + h3*1 = x' 
+    h4*x + h5*y + h6*1 = y' 
+    h7*x + h8*y + h9*1 = 1
+
+    apos contas... 
+    h1*x + h2*y + h3 - x'*h7*x - x'*h8*y - x'*h9 = 0
+    h4*x + h5*y + h6 - y'*h7*x - y'*h8*y - y'*h9 = 0
+
+    linha 1:  [ x,  y,  1,  0,  0,  0,  -x'*x,  -x'*y,  -x']
+    linha 2:  [ 0,  0,  0,  x,  y,  1,  -y'*x,  -y'*y,  -y'] isso para cada ponto 
+
     """
 
     A = []
@@ -70,9 +75,8 @@ def montar_matriz_A(pts1, pts2):
     return np.array(A, dtype=np.float64)
 
 
-# ─────────────────────────────────────────────
+
 #  3. RESOLVER H VIA SVD
-# ─────────────────────────────────────────────
 
 def resolver_homografia_svd(A):
     """
@@ -84,7 +88,7 @@ def resolver_homografia_svd(A):
 
     Por que o último vetor de V?
     - Ele é o vetor que minimiza ||Ah|| com ||h|| = 1
-    - Ou seja: a "direção" que A mais "esmaga"
+    - Ou seja: a "direção" que A mais "esmaga" a junção, sentimos menos ao visualizar
     """
 
     U, S, Vt = np.linalg.svd(A)
@@ -98,16 +102,11 @@ def resolver_homografia_svd(A):
     return H
 
 
-# ─────────────────────────────────────────────
 #  4. DESNORMALIZAR H
-# ─────────────────────────────────────────────
 
 def desnormalizar_H(H_norm, T1, T2):
     """
-    A homografia foi calculada no espaço normalizado.
-    Precisamos trazê-la de volta para o espaço original (pixels).
-
-    H_original = T2⁻¹ @ H_norm @ T1
+  Basicamente aqui desfazemos a normalização feita na função 1 , puxando a Tranfromação la utilizada
     """
 
     T1_inv = np.linalg.inv(T1)
@@ -115,24 +114,20 @@ def desnormalizar_H(H_norm, T1, T2):
 
     H = T2_inv @ H_norm @ T1
 
-    # Normaliza para que H[2,2] = 1 (convenção)
+    # Normaliza para que H[2,2] = 1 
     H = H / H[2, 2]
 
     return H
 
 
-# ─────────────────────────────────────────────
-#  5. FUNÇÃO PRINCIPAL
-# ─────────────────────────────────────────────
+
 
 def calcular_homografia(pts1, pts2):
     """
-    Recebe listas de pontos correspondentes e retorna a homografia H.
+  Juntamos tudo num passo a passo
 
-    pts1: pontos na imagem 1  [[x1,y1], [x2,y2], ...]
-    pts2: pontos na imagem 2  [[x1,y1], [x2,y2], ...]
-
-    Retorna H (3x3) tal que pts2 ≈ H @ pts1 (em coordenadas homogêneas)
+  Normalizamos-> Montamos a matriz A dados os pontos normalizados através do sistema e equações->
+  Resolvemos a homografiafazendo rotaçoes e alongamento de veotres achando o valor que gera uma menor mudança-> Desnormaliza
     """
 
     assert len(pts1) == len(pts2), "Número de pontos deve ser igual"
@@ -161,10 +156,8 @@ def calcular_homografia(pts1, pts2):
 def erro_reprojecao(H, pts1, pts2):
     """
     Mede o quão boa é a homografia H.
-    Para cada par: projeta pt1 com H e mede distância até pt2.
-
-    Retorna erro por ponto e erro médio.
-    Bom resultado: erro médio < 3px
+    bem simples, nos mostra a distinção dospontos, projeta pt1 com H e mede distância até pt2.
+    
     """
 
     erros = []

@@ -1,0 +1,309 @@
+import json
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  POR QUÊ UMA CLASSE?
+#
+#  A seleção de pontos tem "memória" — precisa lembrar quais pontos já foram
+#  clicados, em qual imagem, quantos pares existem, etc.
+#  Uma classe é perfeita pra isso: o `self` guarda todo esse estado.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SeletorDePontos:
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  __init__: chamado quando você faz SeletorDePontos(img1, img2, ...)
+    #
+    #  Aqui definimos todos os atributos iniciais da classe:
+    #  - as imagens
+    #  - as listas de pontos
+    #  - qual imagem está "esperando" o próximo clique
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def __init__(self, img1, img2, caminho_json="panorama_project/data/points.json"):
+        
+        self.img1 = img1                  # Imagem da esquerda (numpy array BGR do OpenCV)
+        self.img2 = img2                  # Imagem da direita
+
+        self.pts1 = []                    # Lista de [x, y] clicados na imagem 1
+        self.pts2 = []                    # Lista de [x, y] clicados na imagem 2
+
+        # Qual clique esperar agora?
+        # 1 → próximo clique é na imagem 1
+        # 2 → próximo clique é na imagem 2
+        self.proximo_clique = 1
+
+        self.caminho_json = caminho_json
+
+        # Paleta de cores para colorir os pares 
+        self.cores = [
+            '#e6194b', '#3cb44b', '#4363d8', '#f58231',
+            '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+            '#fabed4', '#469990'
+        ]
+
+        # Tenta carregar pontos já salvos antes de abrir a interface
+        self._carregar_json()
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  CARREGAR JSON
+    #
+    #  Se o arquivo já existir (de uma sessão anterior), carrega os pontos.
+    #  Isso evita ter que re-clicar tudo toda vez.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _carregar_json(self):
+        if os.path.exists(self.caminho_json):
+            with open(self.caminho_json, "r") as f:
+                dados = json.load(f)
+            self.pts1 = dados.get("pts1", [])
+            self.pts2 = dados.get("pts2", [])
+            print(f" {len(self.pts1)} pares carregados de '{self.caminho_json}'")
+        else:
+            print("  Nenhum JSON encontrado. Começando do zero.")
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  SALVAR JSON
+    #
+    #  Chamado quando o usuário pressiona 'S'.
+    #  Cria a pasta se não existir e salva os dois arrays de pontos.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _salvar_json(self):
+        pasta = os.path.dirname(self.caminho_json)
+        if pasta:
+            os.makedirs(pasta, exist_ok=True)
+        dados = {
+            "pts1": self.pts1,
+            "pts2": self.pts2
+        }
+        with open(self.caminho_json, "w") as f:
+            json.dump(dados, f, indent=2)
+        print(f" Pontos salvos em '{self.caminho_json}'")
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  DESENHAR TUDO
+    #
+    #  Toda vez que um ponto novo é adicionado (ou removido), redesenhamos
+    #  as duas imagens do zero. Isso é mais simples do que tentar atualizar
+    #  incrementalmente.
+    #
+    #  O matplotlib converte BGR (OpenCV) para RGB antes de exibir.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _redesenhar(self):
+        # Limpa os dois eixos (ax1 = imagem esquerda, ax2 = imagem direita)
+        self.ax1.cla()
+        self.ax2.cla()
+
+        # Mostra as imagens (OpenCV usa BGR, matplotlib usa RGB → invertemos)
+        self.ax1.imshow(self.img1[:, :, ::-1])
+        self.ax2.imshow(self.img2[:, :, ::-1])
+
+        # ── Quantos pares COMPLETOS temos? ──────────────────────────────────
+        # pts1 e pts2 sempre têm o mesmo tamanho (pares completos)
+        # Se proximo_clique == 2, temos um ponto "pendente" em pts1 sem par ainda
+        n_pares = len(self.pts2)         # pares já completos
+        n_pts1  = len(self.pts1)         # total de pontos clicados na img1
+
+        # ── Desenha os pares completos ───────────────────────────────────────
+        for i in range(n_pares):
+            cor = self.cores[i % len(self.cores)]
+            x1, y1 = self.pts1[i]
+            x2, y2 = self.pts2[i]
+
+            # Círculo na imagem 1
+            self.ax1.plot(x1, y1, 'o', color=cor, markersize=8)
+            self.ax1.text(x1 + 6, y1 - 6, str(i + 1), color=cor, fontsize=9, fontweight='bold')
+
+            # Círculo na imagem 2
+            self.ax2.plot(x2, y2, 'o', color=cor, markersize=8)
+            self.ax2.text(x2 + 6, y2 - 6, str(i + 1), color=cor, fontsize=9, fontweight='bold')
+
+        # ── Se há ponto pendente na img1 (aguardando clique na img2) ─────────
+        if n_pts1 > n_pares:
+            cor = self.cores[n_pares % len(self.cores)]
+            x1, y1 = self.pts1[-1]
+            # Triângulo indica "aguardando par"
+            self.ax1.plot(x1, y1, '^', color=cor, markersize=10)
+            self.ax1.text(x1 + 6, y1 - 6, f"{n_pares + 1}?", color=cor, fontsize=9)
+
+        # ── Títulos dinâmicos ────────────────────────────────────────────────
+        titulo1 = "Imagem 1"
+        titulo2 = "Imagem 2"
+
+        if self.proximo_clique == 1:
+            titulo1 += "   CLIQUE AQUI"
+        else:
+            titulo2 += "  CLIQUE AQUI"
+
+        self.ax1.set_title(titulo1, fontsize=11, fontweight='bold')
+        self.ax2.set_title(titulo2, fontsize=11, fontweight='bold')
+        self.ax1.axis('off')
+        self.ax2.axis('off')
+
+        # ── Rodapé com instruções ────────────────────────────────────────────
+        instrucoes = (
+            f"  Pares completos: {n_pares}  |  "
+            "S = salvar    Z = desfazer    Q = sair"
+        )
+        self.fig.suptitle(instrucoes, fontsize=10, y=0.02)
+
+        self.fig.canvas.draw()
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  HANDLER DE CLIQUE
+    #
+    #  O matplotlib chama essa função automaticamente toda vez que o usuário
+    #  clica em qualquer parte da figura.
+    #
+    #  `event` contém:
+    #    event.inaxes  → em qual eixo (ax1 ou ax2) foi o clique
+    #    event.xdata   → coordenada X dentro da imagem
+    #    event.ydata   → coordenada Y dentro da imagem
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _ao_clicar(self, event):
+        # Ignora cliques fora das imagens (ex: na barra de ferramentas)
+        if event.inaxes not in [self.ax1, self.ax2]:
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+
+        x = round(event.xdata)
+        y = round(event.ydata)
+
+        # ── Clique esperado na imagem 1 ──────────────────────────────────────
+        if self.proximo_clique == 1 and event.inaxes == self.ax1:
+            self.pts1.append([x, y])
+            self.proximo_clique = 2
+            print(f"  → Ponto {len(self.pts1)} na Img1: ({x}, {y})  — agora clique na Img2")
+
+        # ── Clique esperado na imagem 2 ──────────────────────────────────────
+        elif self.proximo_clique == 2 and event.inaxes == self.ax2:
+            self.pts2.append([x, y])
+            self.proximo_clique = 1
+            print(f"  → Ponto {len(self.pts2)} na Img2: ({x}, {y})  — PAR {len(self.pts2)} COMPLETO ")
+
+        # ── Clique no lugar errado ───────────────────────────────────────────
+        else:
+            lado = "Imagem 1" if self.proximo_clique == 1 else "Imagem 2"
+            print(f"   Clique na {lado}!")
+            return
+
+        self._redesenhar()
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  HANDLER DE TECLADO
+    #
+    #  S → salva JSON
+    #  Z → desfaz último ponto
+    #  Q → fecha a janela
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _ao_pressionar_tecla(self, event):
+        tecla = event.key.lower() if event.key else ""
+
+        if tecla == "s":
+            if len(self.pts1) == len(self.pts2) and len(self.pts1) >= 4:
+                self._salvar_json()
+            else:
+                print(f"    Precisa de ≥4 pares completos para salvar. "
+                      f"Você tem {len(self.pts2)}.")
+
+        elif tecla == "z":
+            # Desfaz o último ponto adicionado
+            if self.proximo_clique == 2 and len(self.pts1) > len(self.pts2):
+                # Tinha um ponto pendente na img1 → remove ele
+                removido = self.pts1.pop()
+                self.proximo_clique = 1
+                print(f"   Ponto pendente na Img1 removido: {removido}")
+            elif len(self.pts2) > 0:
+                # Remove o último par completo
+                r1 = self.pts1.pop()
+                r2 = self.pts2.pop()
+                self.proximo_clique = 1
+                print(f"   Par {len(self.pts1) + 1} removido: {r1} ↔ {r2}")
+            else:
+                print("    Nada para desfazer.")
+            self._redesenhar()
+
+        elif tecla == "q":
+            print("  Encerrando seletor.")
+            plt.close(self.fig)
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  INICIAR
+    #
+    #  Método público que abre a janela e conecta os eventos.
+    #  É o único método que o main.py precisa chamar.
+    #
+    #  Retorna (pts1, pts2) após o usuário fechar a janela.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def iniciar(self):
+        plt.rcParams['keymap.save']    = []   # remove o 'S' → salvar figura
+        plt.rcParams['keymap.quit']    = []   # remove o 'Q' → fechar 
+        plt.rcParams['keymap.back']    = []   # remove o 'Z' → navegar histórico
+        plt.rcParams['keymap.forward'] = []   # remove o 'V' → navegar histórico
+
+        # Cria a figura com dois eixos lado a lado
+        # figsize=(16, 7) → largura 16 polegadas, altura 7
+        self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(16, 7))
+        self.fig.subplots_adjust(bottom=0.08)
+
+        # Conecta os eventos de clique e teclado
+        self.fig.canvas.mpl_connect('button_press_event',  self._ao_clicar)
+        self.fig.canvas.mpl_connect('key_press_event',     self._ao_pressionar_tecla)
+
+        # Desenha o estado inicial (com pontos já carregados, se houver)
+        self._redesenhar()
+
+        plt.show()
+
+        # Retorna apenas pares completos
+        n = min(len(self.pts1), len(self.pts2))
+        return self.pts1[:n], self.pts2[:n]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TESTE ISOLADO
+#
+#  Você pode rodar este arquivo diretamente para testar sem o main.py:
+#  > python point_selector.py
+#
+#  Ele cria duas imagens coloridas artificiais para simular o uso real.
+# ─────────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import cv2
+
+    # Imagens de teste: gradientes coloridos 800×600
+    img1 = np.zeros((600, 800, 3), dtype=np.uint8)
+    img2 = np.zeros((600, 800, 3), dtype=np.uint8)
+
+    # Pinta com cores diferentes para distinguir visualmente
+    img1[:, :, 0] = np.linspace(50, 200, 800)   # canal vermelho varia na horizontal
+    img2[:, :, 1] = np.linspace(50, 200, 600).reshape(-1, 1)  # canal verde varia na vertical
+
+    # Adiciona alguns círculos para ter referências visuais
+    for cx, cy in [(200, 150), (600, 150), (600, 450), (200, 450)]:
+        cv2.circle(img1, (cx, cy), 15, (255, 255, 0), -1)
+        cv2.circle(img2, (cx + 30, cy + 10), 15, (0, 255, 255), -1)
+
+    seletor = SeletorDePontos(img1, img2, caminho_json="test_points.json")
+    pts1, pts2 = seletor.iniciar()
+
+    print(f"\nPontos finais:")
+    print(f"  pts1: {pts1}")
+    print(f"  pts2: {pts2}")
