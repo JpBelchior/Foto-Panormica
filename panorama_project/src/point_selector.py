@@ -99,21 +99,20 @@ class SeletorDePontos:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _redesenhar(self):
-        # Limpa os dois eixos (ax1 = imagem esquerda, ax2 = imagem direita)
+        # Limpa os dois eixos 
         self.ax1.cla()
         self.ax2.cla()
 
-        # Mostra as imagens (OpenCV usa BGR, matplotlib usa RGB → invertemos)
+        # Mostra as imagens 
         self.ax1.imshow(self.img1[:, :, ::-1])
         self.ax2.imshow(self.img2[:, :, ::-1])
 
-        # ── Quantos pares COMPLETOS temos? ──────────────────────────────────
-        # pts1 e pts2 sempre têm o mesmo tamanho (pares completos)
+        # pts1 e pts2 sempre têm o mesmo tamanho 
         # Se proximo_clique == 2, temos um ponto "pendente" em pts1 sem par ainda
-        n_pares = len(self.pts2)         # pares já completos
-        n_pts1  = len(self.pts1)         # total de pontos clicados na img1
+        n_pares = len(self.pts2)         
+        n_pts1  = len(self.pts1)        
 
-        # ── Desenha os pares completos ───────────────────────────────────────
+        #  Desenha os pares completos
         for i in range(n_pares):
             cor = self.cores[i % len(self.cores)]
             x1, y1 = self.pts1[i]
@@ -127,7 +126,7 @@ class SeletorDePontos:
             self.ax2.plot(x2, y2, 'o', color=cor, markersize=8)
             self.ax2.text(x2 + 6, y2 - 6, str(i + 1), color=cor, fontsize=9, fontweight='bold')
 
-        # ── Se há ponto pendente na img1 (aguardando clique na img2) ─────────
+        # Se há ponto sem clique na imagem 2
         if n_pts1 > n_pares:
             cor = self.cores[n_pares % len(self.cores)]
             x1, y1 = self.pts1[-1]
@@ -135,21 +134,19 @@ class SeletorDePontos:
             self.ax1.plot(x1, y1, '^', color=cor, markersize=10)
             self.ax1.text(x1 + 6, y1 - 6, f"{n_pares + 1}?", color=cor, fontsize=9)
 
-        # ── Títulos dinâmicos ────────────────────────────────────────────────
         titulo1 = "Imagem 1"
         titulo2 = "Imagem 2"
 
         if self.proximo_clique == 1:
-            titulo1 += "   CLIQUE AQUI"
+            titulo1 += " CLIQUE AQUI"
         else:
-            titulo2 += "  CLIQUE AQUI"
+            titulo2 += " CLIQUE AQUI"
 
         self.ax1.set_title(titulo1, fontsize=11, fontweight='bold')
         self.ax2.set_title(titulo2, fontsize=11, fontweight='bold')
         self.ax1.axis('off')
         self.ax2.axis('off')
 
-        # ── Rodapé com instruções ────────────────────────────────────────────
         instrucoes = (
             f"  Pares completos: {n_pares}  |  "
             "S = salvar    Z = desfazer    Q = sair"
@@ -159,17 +156,10 @@ class SeletorDePontos:
         self.fig.canvas.draw()
 
 
-    # ─────────────────────────────────────────────────────────────────────────
+    
     #  HANDLER DE CLIQUE
-    #
-    #  O matplotlib chama essa função automaticamente toda vez que o usuário
+    #  O matplotlib chama essa função  toda vez que o usuário
     #  clica em qualquer parte da figura.
-    #
-    #  `event` contém:
-    #    event.inaxes  → em qual eixo (ax1 ou ax2) foi o clique
-    #    event.xdata   → coordenada X dentro da imagem
-    #    event.ydata   → coordenada Y dentro da imagem
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _ao_clicar(self, event):
         # Ignora cliques fora das imagens (ex: na barra de ferramentas)
@@ -181,35 +171,29 @@ class SeletorDePontos:
         x = round(event.xdata)
         y = round(event.ydata)
 
-        # ── Clique esperado na imagem 1 ──────────────────────────────────────
+        # Clique na imagem 1
         if self.proximo_clique == 1 and event.inaxes == self.ax1:
             self.pts1.append([x, y])
             self.proximo_clique = 2
-            print(f"  → Ponto {len(self.pts1)} na Img1: ({x}, {y})  — agora clique na Img2")
+            print(f" Ponto {len(self.pts1)} na Img1: ({x}, {y})  — agora clique na Img2")
 
-        # ── Clique esperado na imagem 2 ──────────────────────────────────────
+        # Clique na imagem 2 
         elif self.proximo_clique == 2 and event.inaxes == self.ax2:
             self.pts2.append([x, y])
             self.proximo_clique = 1
             print(f"  → Ponto {len(self.pts2)} na Img2: ({x}, {y})  — PAR {len(self.pts2)} COMPLETO ")
 
-        # ── Clique no lugar errado ───────────────────────────────────────────
+        # Clique no lugar errado ─
         else:
             lado = "Imagem 1" if self.proximo_clique == 1 else "Imagem 2"
-            print(f"   Clique na {lado}!")
+            print(f" Clique na {lado}!")
             return
 
         self._redesenhar()
 
 
-    # ─────────────────────────────────────────────────────────────────────────
     #  HANDLER DE TECLADO
-    #
-    #  S → salva JSON
-    #  Z → desfaz último ponto
-    #  Q → fecha a janela
-    # ─────────────────────────────────────────────────────────────────────────
-
+   
     def _ao_pressionar_tecla(self, event):
         tecla = event.key.lower() if event.key else ""
 
@@ -217,16 +201,16 @@ class SeletorDePontos:
             if len(self.pts1) == len(self.pts2) and len(self.pts1) >= 4:
                 self._salvar_json()
             else:
-                print(f"    Precisa de ≥4 pares completos para salvar. "
+                print(f"  Precisa de ≥4 pares completos para salvar. "
                       f"Você tem {len(self.pts2)}.")
 
         elif tecla == "z":
-            # Desfaz o último ponto adicionado
+            # desfazer pontos
             if self.proximo_clique == 2 and len(self.pts1) > len(self.pts2):
-                # Tinha um ponto pendente na img1 → remove ele
+                # Remove pontos pendentes na imagem 1
                 removido = self.pts1.pop()
                 self.proximo_clique = 1
-                print(f"   Ponto pendente na Img1 removido: {removido}")
+                print(f"Ponto pendente na Img1 removido: {removido}")
             elif len(self.pts2) > 0:
                 # Remove o último par completo
                 r1 = self.pts1.pop()
@@ -252,10 +236,10 @@ class SeletorDePontos:
     # ─────────────────────────────────────────────────────────────────────────
 
     def iniciar(self):
-        plt.rcParams['keymap.save']    = []   # remove o 'S' → salvar figura
-        plt.rcParams['keymap.quit']    = []   # remove o 'Q' → fechar 
-        plt.rcParams['keymap.back']    = []   # remove o 'Z' → navegar histórico
-        plt.rcParams['keymap.forward'] = []   # remove o 'V' → navegar histórico
+        plt.rcParams['keymap.save']    = []  
+        plt.rcParams['keymap.quit']    = []   
+        plt.rcParams['keymap.back']    = []   
+        plt.rcParams['keymap.forward'] = []  
 
         # Cria a figura com dois eixos lado a lado
         # figsize=(16, 7) → largura 16 polegadas, altura 7
