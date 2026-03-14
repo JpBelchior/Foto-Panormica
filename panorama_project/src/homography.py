@@ -1,7 +1,5 @@
 import numpy as np
 
-
-
 #  1. NORMALIZAÇÃO DE HARTLEY
 
 def normalizar_pontos(pts):
@@ -11,7 +9,6 @@ def normalizar_pontos(pts):
    Retornamos os pontos e a Transformação feita para depois desfazermos
    """
     
-
     pts = np.array(pts, dtype=np.float64)
 
     # Centroide
@@ -149,9 +146,7 @@ def calcular_homografia(pts1, pts2):
     return H
 
 
-# ─────────────────────────────────────────────
 #  6. ERRO DE REPROJEÇÃO
-# ─────────────────────────────────────────────
 
 def erro_reprojecao(H, pts1, pts2):
     """
@@ -182,9 +177,7 @@ def erro_reprojecao(H, pts1, pts2):
     return erros, np.mean(erros)
 
 
-# ─────────────────────────────────────────────
-#  TESTE RÁPIDO (rode esse arquivo diretamente)
-# ─────────────────────────────────────────────
+#  TESTE RÁPIDO 
 
 if __name__ == "__main__":
 

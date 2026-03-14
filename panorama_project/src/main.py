@@ -3,19 +3,13 @@ import numpy as np
 import sys
 import os
 
-# Garante que o Python encontre os outros módulos na pasta src/
 sys.path.append(os.path.dirname(__file__))
 
 from homography import calcular_homografia, erro_reprojecao
 from point_selector import SeletorDePontos
 from warper import criar_panorama
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CAMINHOS
-# ─────────────────────────────────────────────────────────────────────────────
-
-BASE_DIR   = os.path.dirname(os.path.dirname(__file__))          # panorama_project/
+BASE_DIR   = os.path.dirname(os.path.dirname(__file__))          
 DATA_DIR   = os.path.join(BASE_DIR, "data")
 
 IMG1_PATH  = os.path.join(DATA_DIR, "imag1.jpeg")
@@ -24,9 +18,8 @@ JSON_PATH  = os.path.join(DATA_DIR, "points.json")
 OUTPUT_PATH = os.path.join(DATA_DIR, "panorama.jpeg")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  PASSO 1 — CARREGAR IMAGENS
-# ─────────────────────────────────────────────────────────────────────────────
+
+#CARREGAR IMAGENS
 
 def carregar_imagens():
     img1 = cv2.imread(IMG1_PATH)
@@ -43,9 +36,8 @@ def carregar_imagens():
     return img1, img2
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 #  PASSO 2 — SELECIONAR PONTOS
-# ─────────────────────────────────────────────────────────────────────────────
 
 def selecionar_pontos(img1, img2):
     """
@@ -70,9 +62,7 @@ def selecionar_pontos(img1, img2):
     return pts1, pts2
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  PASSO 3 — CALCULAR HOMOGRAFIA
-# ─────────────────────────────────────────────────────────────────────────────
+# CALCULAR HOMOGRAFIA
 
 def calcular_H(pts1, pts2):
     H = calcular_homografia(pts1, pts2)
@@ -91,10 +81,7 @@ def calcular_H(pts1, pts2):
 
     return H
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  PASSO 4 — CRIAR E SALVAR PANORAMA
-# ─────────────────────────────────────────────────────────────────────────────
+#CRIAR E SALVAR PANORAMA
 
 def gerar_panorama(H, img1, img2):
     panorama, canvas_size, offset = criar_panorama(H, img1, img2)
@@ -104,10 +91,7 @@ def gerar_panorama(H, img1, img2):
 
     return panorama
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  PASSO 5 — EXIBIR RESULTADO
-# ─────────────────────────────────────────────────────────────────────────────
+#EXIBIR RESULTADO
 
 def exibir(panorama):
     # Redimensiona para caber na tela se for muito grande
@@ -125,10 +109,6 @@ def exibir(panorama):
     cv2.destroyAllWindows()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  MAIN
-# ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     img1, img2 = carregar_imagens()
     
@@ -140,4 +120,4 @@ if __name__ == "__main__":
 
     exibir(panorama)
 
-    print("\n  Concluído! \n")
+    print("\n  Concluído! Sem erros \n")

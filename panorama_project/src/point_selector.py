@@ -26,13 +26,12 @@ class SeletorDePontos:
 
     def __init__(self, img1, img2, caminho_json="panorama_project/data/points.json"):
         
-        self.img1 = img1                  # Imagem da esquerda (numpy array BGR do OpenCV)
+        self.img1 = img1                  # Imagem da esquerda 
         self.img2 = img2                  # Imagem da direita
 
-        self.pts1 = []                    # Lista de [x, y] clicados na imagem 1
-        self.pts2 = []                    # Lista de [x, y] clicados na imagem 2
+        self.pts1 = []                    
+        self.pts2 = []                    
 
-        # Qual clique esperar agora?
         # 1 → próximo clique é na imagem 1
         # 2 → próximo clique é na imagem 2
         self.proximo_clique = 1
@@ -68,13 +67,6 @@ class SeletorDePontos:
             print("  Nenhum JSON encontrado. Começando do zero.")
 
 
-    # ─────────────────────────────────────────────────────────────────────────
-    #  SALVAR JSON
-    #
-    #  Chamado quando o usuário pressiona 'S'.
-    #  Cria a pasta se não existir e salva os dois arrays de pontos.
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _salvar_json(self):
         pasta = os.path.dirname(self.caminho_json)
         if pasta:
@@ -107,7 +99,6 @@ class SeletorDePontos:
         self.ax1.imshow(self.img1[:, :, ::-1])
         self.ax2.imshow(self.img2[:, :, ::-1])
 
-        # pts1 e pts2 sempre têm o mesmo tamanho 
         # Se proximo_clique == 2, temos um ponto "pendente" em pts1 sem par ainda
         n_pares = len(self.pts2)         
         n_pts1  = len(self.pts1)        
@@ -130,7 +121,7 @@ class SeletorDePontos:
         if n_pts1 > n_pares:
             cor = self.cores[n_pares % len(self.cores)]
             x1, y1 = self.pts1[-1]
-            # Triângulo indica "aguardando par"
+        
             self.ax1.plot(x1, y1, '^', color=cor, markersize=10)
             self.ax1.text(x1 + 6, y1 - 6, f"{n_pares + 1}?", color=cor, fontsize=9)
 
@@ -158,11 +149,8 @@ class SeletorDePontos:
 
     
     #  HANDLER DE CLIQUE
-    #  O matplotlib chama essa função  toda vez que o usuário
-    #  clica em qualquer parte da figura.
-
     def _ao_clicar(self, event):
-        # Ignora cliques fora das imagens (ex: na barra de ferramentas)
+        # Ignora cliques fora das imagens 
         if event.inaxes not in [self.ax1, self.ax2]:
             return
         if event.xdata is None or event.ydata is None:
@@ -171,19 +159,16 @@ class SeletorDePontos:
         x = round(event.xdata)
         y = round(event.ydata)
 
-        # Clique na imagem 1
         if self.proximo_clique == 1 and event.inaxes == self.ax1:
             self.pts1.append([x, y])
             self.proximo_clique = 2
             print(f" Ponto {len(self.pts1)} na Img1: ({x}, {y})  — agora clique na Img2")
 
-        # Clique na imagem 2 
         elif self.proximo_clique == 2 and event.inaxes == self.ax2:
             self.pts2.append([x, y])
             self.proximo_clique = 1
             print(f"  → Ponto {len(self.pts2)} na Img2: ({x}, {y})  — PAR {len(self.pts2)} COMPLETO ")
 
-        # Clique no lugar errado ─
         else:
             lado = "Imagem 1" if self.proximo_clique == 1 else "Imagem 2"
             print(f" Clique na {lado}!")
@@ -242,7 +227,6 @@ class SeletorDePontos:
         plt.rcParams['keymap.forward'] = []  
 
         # Cria a figura com dois eixos lado a lado
-        # figsize=(16, 7) → largura 16 polegadas, altura 7
         self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(16, 7))
         self.fig.subplots_adjust(bottom=0.08)
 
@@ -250,7 +234,7 @@ class SeletorDePontos:
         self.fig.canvas.mpl_connect('button_press_event',  self._ao_clicar)
         self.fig.canvas.mpl_connect('key_press_event',     self._ao_pressionar_tecla)
 
-        # Desenha o estado inicial (com pontos já carregados, se houver)
+        # Desenha o estado inicial 
         self._redesenhar()
 
         plt.show()
@@ -258,36 +242,3 @@ class SeletorDePontos:
         # Retorna apenas pares completos
         n = min(len(self.pts1), len(self.pts2))
         return self.pts1[:n], self.pts2[:n]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  TESTE ISOLADO
-#
-#  Você pode rodar este arquivo diretamente para testar sem o main.py:
-#  > python point_selector.py
-#
-#  Ele cria duas imagens coloridas artificiais para simular o uso real.
-# ─────────────────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    import cv2
-
-    # Imagens de teste: gradientes coloridos 800×600
-    img1 = np.zeros((600, 800, 3), dtype=np.uint8)
-    img2 = np.zeros((600, 800, 3), dtype=np.uint8)
-
-    # Pinta com cores diferentes para distinguir visualmente
-    img1[:, :, 0] = np.linspace(50, 200, 800)   # canal vermelho varia na horizontal
-    img2[:, :, 1] = np.linspace(50, 200, 600).reshape(-1, 1)  # canal verde varia na vertical
-
-    # Adiciona alguns círculos para ter referências visuais
-    for cx, cy in [(200, 150), (600, 150), (600, 450), (200, 450)]:
-        cv2.circle(img1, (cx, cy), 15, (255, 255, 0), -1)
-        cv2.circle(img2, (cx + 30, cy + 10), 15, (0, 255, 255), -1)
-
-    seletor = SeletorDePontos(img1, img2, caminho_json="test_points.json")
-    pts1, pts2 = seletor.iniciar()
-
-    print(f"\nPontos finais:")
-    print(f"  pts1: {pts1}")
-    print(f"  pts2: {pts2}")
