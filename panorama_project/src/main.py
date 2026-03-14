@@ -130,21 +130,12 @@ def exibir(panorama):
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-
-    print("\n══════════════════════════════════════════")
-    print("  FOTO-PANORÂMICA")
-    print("══════════════════════════════════════════")
-
-    print("\n[1/4] Carregando imagens...")
     img1, img2 = carregar_imagens()
-
-    print("\n[2/4] Selecionando pontos correspondentes...")
+    
     pts1, pts2 = selecionar_pontos(img1, img2)
 
-    print("\n[3/4] Calculando homografia...")
     H = calcular_H(pts1, pts2)
 
-    print("\n[4/4] Gerando panorama...")
     panorama = gerar_panorama(H, img1, img2)
 
     exibir(panorama)

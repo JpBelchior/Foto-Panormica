@@ -4,6 +4,8 @@ env/
 .venv/
 .env/
 
+panorama_project/data
+
 # Python cache
 __pycache__/
 *.py[cod]
