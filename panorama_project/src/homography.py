@@ -4,11 +4,11 @@ import numpy as np
 
 def normalizar_pontos(pts):
     """
-   Normalizamos aqui os pontos para que os valores fiquem menores e deixar os proximos calculos mais tranquilos
-   escolhemos um centroide e o normalizamos. 
-   Retornamos os pontos e a Transformação feita para depois desfazermos
-   """
-    
+    Normalizamos aqui os pontos para que os valores fiquem menores e deixar os proximos calculos mais tranquilos.
+    Escolhemos um centroide e o normalizamos.
+    Retornamos os pontos e a Transformação feita para depois desfazermos.
+    """
+
     pts = np.array(pts, dtype=np.float64)
 
     # Centroide
@@ -37,94 +37,94 @@ def normalizar_pontos(pts):
     return pts_norm[:, :2], T
 
 
-
 #  2. MONTAR A MATRIZ A
 
 def montar_matriz_A(pts1, pts2):
     """
-    Vamos fazer a seguinte transformção (xi,yi) <-> (xi',yi'), H @ [x, y, 1] = [x', y', 1]
-    gera 2 linhas na matriz A.
+    Para cada par (x,y) → (x',y'), elimina lambda dividindo pela terceira linha.
+    Isso gera 2 equações por par, todas com lado direito zero: Ah = 0
 
-    O sistema é Ah = 0, onde h = [h1,h2,...,h9]
+    1) h1x1+ h2y1 + h3 = lambda1
+    2) h4x1+ h5y1 + h6 = lambda1
+    3) h7x1+ h8y1 + h9 = lambda1
 
-    Esse seria o nosso conjunto de equaçoes:
-    h1*x + h2*y + h3*1 = x' 
-    h4*x + h5*y + h6*1 = y' 
-    h7*x + h8*y + h9*1 = 1
+    dividindo 1 e 2 por 3
 
-    apos contas... 
-    h1*x + h2*y + h3 - x'*h7*x - x'*h8*y - x'*h9 = 0
-    h4*x + h5*y + h6 - y'*h7*x - y'*h8*y - y'*h9 = 0
+    linha 1: [-x, -y, -1,  0,  0,  0,  x·x',  y·x',  x']
+    linha 2: [  0,  0,  0, -x, -y, -1,  x·y',  y·y',  y']
 
-    linha 1:  [ x,  y,  1,  0,  0,  0,  -x'*x,  -x'*y,  -x']
-    linha 2:  [ 0,  0,  0,  x,  y,  1,  -y'*x,  -y'*y,  -y'] isso para cada ponto 
-
+    Com N pares: 2N equações, 9 incógnitas (h1...h9).
     """
 
     A = []
 
     for (x, y), (xl, yl) in zip(pts1, pts2):
-        # Linha 1 do par
-        A.append([-x, -y, -1,   0,  0,  0,  x*xl,  y*xl,  xl])
-        # Linha 2 do par
-        A.append([ 0,  0,  0,  -x, -y, -1,  x*yl,  y*yl,  yl])
+        A.append([-x, -y, -1,  0,   0,  0,  x*xl,  y*xl,  xl])
+        A.append([ 0,  0,  0, -x,  -y, -1,  x*yl,  y*yl,  yl])
 
     return np.array(A, dtype=np.float64)
 
 
+#  3. RESOLVER H VIA EQUAÇÕES NORMAIS
 
-#  3. RESOLVER H VIA SVD
-
-def resolver_homografia_svd(A):
+def resolver_homografia(A):
     """
-    Resolve Ah = 0 pela SVD de A.
+    Resolve Ah = 0 (dada a montagem feita aciam)  com ||h|| = 1 via equações normais.
 
-    A = U @ Σ @ Vt
-    A solução é a última coluna de V (= última linha de Vt)
-    que corresponde ao menor valor singular.
+    Queremos minimizar ||Ah||² com ||h|| = 1.
 
-    Por que o último vetor de V?
-    - Ele é o vetor que minimiza ||Ah|| com ||h|| = 1
-    - Ou seja: a "direção" que A mais "esmaga" a junção, sentimos menos ao visualizar
+    Expandindo: ||Ah||² = (Ah)ᵀ(Ah) = hᵀ AᵀA h
+
+    Então o problema é:
+    minimizar  hᵀ AᵀA h
+    hᵀh = 1 escolhemos isso pois a geometria projetiva é definida a menos deu ma escala
+
+    Isso é um problema de autovetor. A solução satisfaz:
+    AᵀA · h = lambda · h
+
+    Onde lambda é o menor autovalor de AᵀA, pois quanto menor lambda,
+    menor é hᵀ AᵀA h = lambda · hᵀh = lambda.
+
+    O h que queremos é o autovetor de M associado ao menor lambda.
     """
 
-    U, S, Vt = np.linalg.svd(A)
+    M = A.T @ A                          
 
-    # Último vetor linha de Vt = último vetor coluna de V
-    h = Vt[-1]
+    #  M·h = lambda·h para matrizes simétricas
+    # função eight retorna autovalores em ordem crescente 
+    autovalores, autovetores = np.linalg.eigh(M)
 
-    # Reshape de (9,) para (3,3)
+    h = autovetores[:, 0]                        # autovetor do menor lambda
+
     H = h.reshape(3, 3)
 
     return H
-
 
 #  4. DESNORMALIZAR H
 
 def desnormalizar_H(H_norm, T1, T2):
     """
-  Basicamente aqui desfazemos a normalização feita na função 1 , puxando a Tranfromação la utilizada
+    Desfazemos a normalização feita na função 1, puxando a transformação lá utilizada.
     """
 
-    T1_inv = np.linalg.inv(T1)
     T2_inv = np.linalg.inv(T2)
 
     H = T2_inv @ H_norm @ T1
 
-    # Normaliza para que H[2,2] = 1 
+    # Normaliza para que H[2,2] = 1
     H = H / H[2, 2]
 
     return H
 
 
-
+#  5. FUNÇÃO PRINCIPAL
 
 def calcular_homografia(pts1, pts2):
     """
-  Juntamos tudo num passo a passo
+    Junta tudo num passo a passo:
 
-  Normalizamos-> Montamos a matriz A dados os pontos normalizados através do sistema e equações->
-  Resolvemos a homografiafazendo rotaçoes e alongamento de veotres achando o valor que gera uma menor mudança-> Desnormaliza
+    Normaliza → monta A (sistema Ah=0) → forma AᵀA → acha autovetor
+    do menor autovalor → desnormaliza
     """
 
     assert len(pts1) == len(pts2), "Número de pontos deve ser igual"
@@ -137,8 +137,10 @@ def calcular_homografia(pts1, pts2):
     # Passo 2: monta A
     A = montar_matriz_A(pts1_norm, pts2_norm)
 
-    # Passo 3: SVD → H no espaço normalizado
-    H_norm = resolver_homografia_svd(A)
+    print(f"  A: {A.shape[0]} equações, {A.shape[1]} incógnitas")
+
+    # Passo 3: equações normais autovetor de AᵀA
+    H_norm = resolver_homografia(A)
 
     # Passo 4: desnormaliza
     H = desnormalizar_H(H_norm, T1, T2)
@@ -150,9 +152,7 @@ def calcular_homografia(pts1, pts2):
 
 def erro_reprojecao(H, pts1, pts2):
     """
-    Mede o quão boa é a homografia H.
-    bem simples, nos mostra a distinção dospontos, projeta pt1 com H e mede distância até pt2.
-    
+    Tentativa de ver o quao proximo nossas escolhas ficaram do perfeito
     """
 
     erros = []
@@ -168,39 +168,10 @@ def erro_reprojecao(H, pts1, pts2):
         # Divide por w para voltar a coordenadas 2D
         pt2_proj = pt2_proj / pt2_proj[2]
 
-        # Distância euclidiana até o pt2 real
+        # Distância até o pt2 real
         erro = np.sqrt((pt2_proj[0] - pt2[0])**2 + (pt2_proj[1] - pt2[1])**2)
         erros.append(erro)
 
     erros = np.array(erros)
 
     return erros, np.mean(erros)
-
-
-#  TESTE RÁPIDO 
-
-if __name__ == "__main__":
-
-    # Pontos fictícios para testar (imagem 800x600)
-    # Simula uma translação de 50px em x e 20px em y
-    pts1 = [[180, 100], [700, 100], [700, 500], [100, 500]]
-    pts2 = [[150, 120], [750, 120], [750, 520], [150, 520]]
-
-    H = calcular_homografia(pts1, pts2)
-
-    print("Homografia H:")
-    print(np.round(H, 4))
-
-    erros, erro_medio = erro_reprojecao(H, pts1, pts2)
-
-    print(f"\nErro por ponto (px): {np.round(erros, 4)}")
-    print(f"Erro médio: {erro_medio:.4f} px")
-
-    # Mostra os valores singulares de A (para curiosidade)
-    pts1_norm, T1 = normalizar_pontos(pts1)
-    pts2_norm, T2 = normalizar_pontos(pts2)
-    A = montar_matriz_A(pts1_norm, pts2_norm)
-    _, S, _ = np.linalg.svd(A)
-    print(f"\nValores singulares de A:")
-    print(np.round(S, 4))
-    print(f"Razão S[-2]/S[-1] (quanto maior, melhor): {S[-2]/S[-1]:.2f}")
