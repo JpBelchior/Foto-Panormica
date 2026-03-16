@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  POR QUÊ ESSE MÓDULO EXISTE?
 #
@@ -22,7 +21,7 @@ def calcular_canvas(H, img1, img2):
 
     Se algum ponto projetado tiver coordenada negativa (img2 "vaza" para a
     esquerda ou para cima), aplicamos um offset para transladar tudo de volta
-    ao quadrante positivo — pixels negativos não existem.
+    ao quadrante positivo.
 
     Retorna:
       canvas_size : (largura, altura) do canvas em pixels
@@ -32,7 +31,7 @@ def calcular_canvas(H, img1, img2):
     h1, w1 = img1.shape[:2]
     h2, w2 = img2.shape[:2]
 
-    # ── Cantos da img1 em coordenadas homogêneas ─────────────────────────────
+    # Cantos da img1 em coordenadas homogêneas 
     # Ordem: topo-esquerdo, topo-direito, baixo-direito, baixo-esquerdo
     cantos_img1 = np.array([
         [0,  0,  1],
@@ -41,7 +40,7 @@ def calcular_canvas(H, img1, img2):
         [0,  h1, 1]
     ], dtype=np.float64)
 
-    # ── Cantos da img2 projetados para o espaço da img1 ──────────────────────
+    # Cantos da img2 projetados para o espaço da img1 
     cantos_img2 = np.array([
         [0,  0,  1],
         [w2, 0,  1],
@@ -96,7 +95,7 @@ def warpar_img2(H, img2, canvas_size, offset):
     canvas_w, canvas_h = canvas_size
     ox, oy = offset
 
-    # ── Monta grade de todos os pixels do canvas ──────────────────────────────
+    # ── Monta grade de todos os pixels do canvas 
     # xs e ys são matrizes com as coordenadas de cada pixel no espaço da img1
     xs, ys = np.meshgrid(
         np.arange(canvas_w, dtype=np.float32) - ox,
@@ -107,7 +106,7 @@ def warpar_img2(H, img2, canvas_size, offset):
     ones = np.ones_like(xs)
     coords_canvas = np.stack([xs, ys, ones], axis=0)  # shape (3, H, W)
 
-    # ── Aplica H para mapear canvas (espaço img1) → img2 ────────────────────
+    # ── Aplica H para mapear canvas (espaço img1) → img2 
     # H mapeia img1→img2, então usamos diretamente (sem inversa)
 
     # Reshape para (3, H*W), aplica H, volta para (3, H, W)
@@ -119,11 +118,11 @@ def warpar_img2(H, img2, canvas_size, offset):
     w_coord = coords_img2[2:3, :, :]
     coords_img2 = coords_img2[:2, :, :] / w_coord
 
-    # ── cv2.remap espera dois mapas float32: um pra x, um pra y ─────────────
+    # ── cv2.remap espera dois mapas float32: um pra x, um pra y
     map_x = coords_img2[0].astype(np.float32)
     map_y = coords_img2[1].astype(np.float32)
 
-    # INTER_LINEAR = interpolação bilinear (suaviza pixels fracionários)
+    # INTER_LINEAR = interpolação bilinear 
     # BORDER_CONSTANT com 0 → pixels fora da img2 ficam pretos
     img2_warpada = cv2.remap(
         img2, map_x, map_y,
@@ -236,7 +235,7 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(__file__))
     from homography import calcular_homografia
 
-    # ── Imagens sintéticas ────────────────────────────────────────────────────
+    #Imagens sintéticas 
     h, w = 400, 600
     img1 = np.zeros((h, w, 3), dtype=np.uint8)
     img2 = np.zeros((h, w, 3), dtype=np.uint8)
@@ -258,13 +257,13 @@ if __name__ == "__main__":
     for cx, cy in pts2:
         cv2.circle(img2, (cx, cy), 20, (100, 255, 255), -1)
 
-    # ── Calcula H e cria panorama ─────────────────────────────────────────────
+    # Calcula H e cria panorama 
     H = calcular_homografia(pts1, pts2)
     print(f"H calculada:\n{np.round(H, 4)}\n")
 
     panorama, canvas_size, offset = criar_panorama(H, img1, img2)
 
-    # ── Exibe resultado ───────────────────────────────────────────────────────
+    #Exibe resultado 
     cv2.imshow("img1 (base)", img1)
     cv2.imshow("img2 (distorcida)", img2)
     cv2.imshow("Panorama", panorama)

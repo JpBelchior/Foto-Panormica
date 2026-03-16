@@ -75,9 +75,9 @@ def calcular_H(pts1, pts2):
     print(f"  Erro médio: {erro_medio:.4f} px")
 
     if erro_medio > 5.0:
-        print("\n  ⚠ Erro alto! Considere rever os pontos selecionados (tecle 'n' na próxima vez).")
+        print("\n Erro alto! Considere rever os pontos selecionados (tecle 'n' na próxima vez).")
     else:
-        print("  ✓ Homografia com boa qualidade.")
+        print("  Homografia com boa qualidade.")
 
     return H
 
