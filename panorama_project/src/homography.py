@@ -28,7 +28,7 @@ def normalizar_pontos(pts):
         [0,  0,       1]
     ])
 
-    # Converte pontos para coordenadas homogêneas [x, y, 1]
+    # Converte pontos para coordenadas homogêneas 
     pts_h = np.column_stack([pts, np.ones(len(pts))])
 
     # Aplica T em cada ponto
@@ -73,28 +73,32 @@ def resolver_homografia(A):
 
     Queremos minimizar ||Ah||² com ||h|| = 1.
 
-    Expandindo: ||Ah||² = (Ah)ᵀ(Ah) = hᵀ AᵀA h
+    ||Ah||² = (Ah)t(Ah) = ht AtA h
 
     Então o problema é:
-    minimizar  hᵀ AᵀA h
-    hᵀh = 1 escolhemos isso pois a geometria projetiva é definida a menos deu ma escala
+    minimizar  hᵀ AᵀA h = ||A.h|| isso é igual a zero para 4 pontos, porém quando vamos pra mais pontos queremos o menor valor, como se fosse a reta que se aproxima mais de 3 ponto nao colineares
+    hᵀh = 1 escolhemos isso pois a geometria projetiva é definida a menos de u ma escala
 
-    Isso é um problema de autovetor. A solução satisfaz:
-    AᵀA · h = lambda · h
+    seja ||A.h|| = lambda
 
-    Onde lambda é o menor autovalor de AᵀA, pois quanto menor lambda,
-    menor é hᵀ AᵀA h = lambda · hᵀh = lambda.
+    ht.AtAh= lambda (multiplique por h)
+    I.At,A.h = lambda.h
+
+    Isso é um problema de autovetor.
+    AtA · h = lambda · h
+
+    Onde lambda é o menor autovalor de AtA, pois quanto menor lambda, menor é ht AtA h = lambda · hth = lambda.
 
     O h que queremos é o autovetor de M associado ao menor lambda.
     """
 
     M = A.T @ A                          
 
-    #  M·h = lambda·h para matrizes simétricas
+    #  M·h = lambda·h para matrizes simétricas M é sempre simetrica 
     # função eight retorna autovalores em ordem crescente 
     autovalores, autovetores = np.linalg.eigh(M)
 
-    h = autovetores[:, 0]                        # autovetor do menor lambda
+    h = autovetores[:, 0] # autovetor do menor lambda
 
     H = h.reshape(3, 3)
 
